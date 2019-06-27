@@ -1,0 +1,250 @@
+
+' Set to "Table base" coordinates.  
+' All locations in this file are in the universal coordinate frame
+SC,0
+
+' CurrentTool keeps track of the tool that is currently in the spindle
+$CurrentTool := 1
+
+' Define a length and name for all 10 tools (if not already defined)
+$Tool1Length := 0
+$Tool1Name := "Tool 1"
+$Tool2Length := 0
+$Tool2Name := "Tool 2"
+$Tool3Length := 0
+$Tool3Name := "Tool 3"
+$Tool4Length := 0
+$Tool4Name := "Tool 4"
+$Tool5Length := 0
+$Tool5Name := "Tool 5"
+$Tool6Length := 0
+$Tool6Name := "Tool 6"
+
+
+$ToolZeroOffset := 0
+
+&ToolHolderXClearance = 1.5	    ' The distance to move in the X when pulling a tool out of the tool clip
+$ToolHolderHeight = 1.962		' The distance in Z between the Z value measured in calibration, and the Z value for putting a tool in a clip
+&ToolXFudge = 0			' Fudge factor TODO: is this really needed?
+
+' Because there is so much Z distance from the prox switch to a properly captured tool in the toolbar, the move that lowers
+' the Z to capture the tool is done in two parts:  A jog to get it most of the way there, and then a final slower move that captures the tool
+' &PickupClearance is the length of the slow move
+&PickupClearance = 0.5			
+
+
+IF &Tool == $CurrentTool THEN GOTO AlreadyHaveThisTool
+
+' Pull Z all the way up, first (0 in table base is just below the prox switch)
+JZ,0
+
+GOSUB MakeSureSpindleIsOff
+
+' A request for tool 0 means "put the current tool away but don't pick another one up"
+IF &Tool == 0 THEN GOSUB CheckForEmptyDropOff
+
+' If i'm already "carrying" tool 0 then I would expect the spindle to be empty
+IF $CurrentTool == 0 THEN GOTO ShouldBeEmpty ' TODO : Pretty sure this shouldnt work, see below.  This should get tested.
+
+' Here, we prepare to drop off the tool that we're currently carrying.
+' We may find that we're not currently carrying the tool that we think we are, and we deal with that situation appropriately
+
+' Load the X,Y,Z position of the tool we're currently carring so we can go put it back
+&ToolToLoad = $CurrentTool
+GOSUB LoadToolValues
+PAUSE 0.1
+
+' Calculate the current z-offset : this is the offset between the z-prox and the user zero position for this tool, with the current tool length factored out
+Prep:
+	GOSUB GetCurrentZOffset
+ShouldBeEmpty:
+	IF %(57) == 1 THEN GOTO HasTool ' Different behavior depending on whether or not we're actually carrying a tool.
+	NoTool:
+		' If we're not carrying a tool, we actually setup to pick up the requested tool 
+		GOSUB GetCurrentZOffset
+        '&ToolLane = &Tool
+        ' Load the X,Y,Z position of the tool we want to pick up
+		&ToolToLoad = &Tool
+		GOSUB LoadToolValues
+    	PAUSE 0.1
+		GOTO Pickup
+    HasTool:
+		GOTO DropOff    
+DropOff:
+  GOSUB DropOffTool
+
+IF &Tool == 0 THEN GOTO DontPickup
+
+Pickup:
+  &ToolToLoad = &Tool
+  GOSUB LoadToolValues
+  GOSUB PickUpTool
+
+  JZ,0
+
+  ' Set the new tool position
+  &NewOffset = -1.0*(&ToolLength + &CurrentZOffset)
+  VA,,,&NewOffset
+
+  GOTO AllDone
+  
+DontPickup:
+  VA,,,0
+  $CurrentTool = 0
+  JZ,0
+  
+  AlreadyHaveThisTool:
+  'PAUSE "Not picking up tool " + &Tool + "Because current tool is " + $CurrentTool
+  AllDone:
+	END
+
+' Drop off a tool
+' CAUTION: Assumes the tool clip being dropped into is empty
+OpenToolBar:
+	SO,7,1
+    Return
+    
+CloseToolBar:
+	SO,7,0
+    Return
+
+    
+    
+DropOffTool:
+	$ToolZeroOffset = &CurrentZOffset
+	&ToolX = &ToolX + &ToolXFudge
+	JZ,0								' Pull all the way up
+    J2,&ToolX, &ToolY		' Move behind the tool bar
+    GOSUB OpenToolBar
+    PAUSE 0.1
+    JZ,&ToolZ							' Drop to the Z level needed 
+    MS,0.5
+    MX,&ToolX+&ToolXFudge				' Insert into clip
+    SO,8,1								' Open drawbar
+    PAUSE 0.5							' Wait a bit to ensure that the tool is released
+    JZ, -0.125								' Pull all the way up
+    SO,8,0								' Close drawbar
+    GOSUB CloseToolBar
+	RETURN
+    
+' Pick up a tool
+' Assumes that &ToolX, &ToolY and &ToolZ are populated with the location of the tool to pickup
+PickUpTool:
+	&ToolX = &ToolX + &ToolXFudge 
+	JZ,0												' Pull all the way up 
+	J2,&ToolX,&ToolY									' Position above the tool
+    GOSUB OpenToolBar
+    MS,,1.0												' Set the Z-speed to be appropriate for tool capture
+	SO,8,1												' Open drawbar
+    JZ,(&ToolZ)+&PickupClearance		' Drop the Z fast to a level where the tool holder is mostly captured
+    MZ,&ToolZ					' Slow the Z down and do the rest of the capture at move speed
+    SO,8,0												' Close drawbar
+	PAUSE 0.75											' Wait a little bit to ensure that the tool is captured
+    JZ, -0.125				' Pull out of the tool clip
+
+	' The new Z offset is computed and set 
+    &NewOffset = &ToolLength + &CurrentZOffset			
+    VA,,,&NewOffset
+    $CurrentTool = &Tool								' Update the current tool, now that weve picked it up
+    GOSUB CloseToolBar
+	RETURN
+    
+' Calculate the current Z offset (must load tool length first)
+' Returns the offset in the &CurrentZOffset variable
+GetCurrentZOffset:
+	IF $CurrentTool == 0 THEN GOTO SetToolZeroOffset
+	&TableZ = %(3)
+    SC,1
+    &UserZ = %(3)
+    SC,0
+    &CurrentZOffset = (&TableZ-&UserZ) - &ToolLength
+    RETURN
+    SetToolZeroOffset:
+    &CurrentZOffset = $ToolZeroOffset
+    RETURN
+    
+' Load &ToolX,&ToolY,&ToolZ,&ToolLength with values based on &ToolToLoad
+LoadToolValues:
+  &ToolX = $Tool1X
+  &ToolY = $Tool1Y
+  &ToolZ = $Tool1Z
+  &ToolLength = $Tool1Length
+  IF &ToolToLoad == 1 THEN GOTO ToolValuesLoaded
+  &ToolX = $Tool2X
+  &ToolY = $Tool2Y
+  &ToolZ = $Tool2Z
+  &ToolLength = $Tool2Length
+  IF &ToolToLoad == 2 THEN GOTO ToolValuesLoaded
+  &ToolX = $Tool3X
+  &ToolY = $Tool3Y
+  &ToolZ = $Tool3Z
+  &ToolLength = $Tool3Length
+  IF &ToolToLoad == 3 THEN GOTO ToolValuesLoaded
+  &ToolX = $Tool4X
+  &ToolY = $Tool4Y
+  &ToolZ = $Tool4Z
+  &ToolLength = $Tool4Length
+  IF &ToolToLoad == 4 THEN GOTO ToolValuesLoaded
+  &ToolX = $Tool5X
+  &ToolY = $Tool5Y
+  &ToolZ = $Tool5Z
+  &ToolLength = $Tool5Length
+  IF &ToolToLoad == 5 THEN GOTO ToolValuesLoaded
+  &ToolX = $Tool6X
+  &ToolY = $Tool6Y
+  &ToolZ = $Tool6Z
+  &ToolLength = $Tool6Length
+  IF &ToolToLoad == 6 THEN GOTO ToolValuesLoaded
+  FAIL "Unknown tool."
+  ToolValuesLoaded:
+  	RETURN
+
+' Get the toolhead out of the toolbar area by moving behind it if we're in the area of the toolbar, or doing nothing if we're not.
+MoveClearOfToolBar:
+  JZ,0
+  IF %(1) <= $Tool1X - 1.5 THEN GOTO ClearOfToolBar
+  IF %(1) >= $Tool1X + 1.5 THEN GOTO ClearOfToolBar
+  JX,$Tool1X+1.5
+  PAUSE 0.1
+  ClearOfToolBar:
+	RETURN
+
+' Moves in the Y only to the nearest "slot" between tool clips.
+' This is used, for example, after picking up a tool, when we want to bring it out to the table
+MoveToNearestLane:
+	IF %(2) >= &ToolY THEN GOTO OneMore
+    IF %(2) < &ToolY THEN GOTO OneLess
+    PAUSE 0.1
+    OneMore:
+    	JY,&ToolY + ($ToolBarPitch/2.0)
+      	GOTO DoneMoveToNearestLane
+    OneLess:
+        JY,&ToolY - ($ToolBarPitch/2.0)
+        GOTO DoneMoveToNearestLane
+    DoneMoveToNearestLane:
+    RETURN
+    
+' Moves toolhead to the first lane only if it is not already past it. 
+MoveToFirstLane:
+    GoFirstLane:
+    IF %(2) < $Tool1Y-3 THEN GOTO DontMoveToFirstLane
+	JY,$Tool1Y-3
+    DontMoveToFirstLane:
+    RETURN
+    
+MakeSureSpindleIsOff:
+	SO,1,0
+    RETURN
+
+    
+' Drop off the current tool and switch to tool zero.  Don't do a drop off if the spindle is already empty.
+CheckForEmptyDropOff:
+	' Drop off if we're carrying something
+	IF %(57) == 1 THEN GOTO DropOffIsNotEmpty
+	' Switch to tool 0
+	JZ,0
+	VA,,,0 ' "Tool 0" z offset is simply the table base Z offset (no offset)
+  	$CurrentTool = 0
+	END
+	DropOffIsNotEmpty:
+  		RETURN

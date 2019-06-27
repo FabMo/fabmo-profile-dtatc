@@ -1,0 +1,68 @@
+'!FABMO!name:Find Table Origin
+'!FABMO!description:Search for Z,Y,X Prox Switches
+' ATC HOMING MACRO
+
+' Amount to back off the prox switches before zeroing
+&XBackoff = 0.125
+&YBackoff = 0.125	
+&ZBackoff = 0.25
+
+' Amount to search in each axis before giving up
+&XSearch = 110
+&YSearch = 55
+&ZSearch = 10
+
+Main:
+	GOSUB CheckInput ' Check to see if there's a driver fault, or if we're already on the prox
+	GOSUB HomeZ
+	GOSUB HomeY
+	GOSUB HomeX
+END
+
+HomeX:
+	&xs = %(1)														
+	PX,%(1)-&XSearch,1,3											' Probe X for the search distance								
+    &xe = %(1)
+    IF (&xs-&xe) >= (&XSearch-0.1) THEN GOTO CouldntFindXProx		' If we traveled the whole search distance, we never hit the prox
+    JX,%(1)+&XBackoff
+	VA,0,,,,,,0,,,,,												' Set both the table base and user zero to here.
+	RETURN
+    
+HomeY:
+	&ys = %(2)
+	PY,%(2)-&YSearch,1,3											' Probe Y for the search distance
+    &ye = %(2)
+    IF (&ys-&ye) >= (&YSearch-0.1) THEN GOTO CouldntFindYProx		' If we traveled the whole search distance, we never hit the prox
+    JY,%(2)+&YBackoff
+	VA,,0,,,,,,0,,,,												' Set both the table base and user zero to here.
+	RETURN
+    
+HomeZ:
+	PZ,%(3)+&ZSearch,1,3											' Probe Z for the search distance
+    JZ,%(3)-&ZBackoff
+	VA,,,,,,,,,0,,,													' Set the table zero ONLY (keep the user zero)
+	RETURN
+    
+' Fail the file if we're sitting on the prox switch, or if there's a driver fault
+CheckInput:
+	IF %(52) == 1 THEN GOTO check_input_fail_Prox
+	IF %(53) == 1 THEN GOTO check_input_fail_Prox
+	IF %(54) == 1 THEN GOTO check_input_fail_driver
+	RETURN
+
+' Fail states    
+check_input_fail_Prox:
+	'Tool is on the Prox switch.  
+	FAIL "Input switch is already tripped.  Cannot zero the tool."
+
+check_input_fail_driver:
+	'Driver Fault. Reset input 4 then click resume or quit to exit.
+	PAUSE
+	GOTO Main
+	END
+
+CouldntFindXProx:
+	FAIL "Could not find the X prox switch.  Check input switch connections and try again."
+
+CouldntFindYProx:
+	FAIL "Could not find the Y prox switch.  Check input switch connections and try again."

@@ -1,0 +1,143 @@
+'!FABMO!name:ATC Calibration
+'!FABMO!description:Macro Description
+SC,0
+
+&ToolHolderOD = 1.58
+&ToolHolderID = 1.25
+&ZDepthForProbe = 0.25		' How far below the lip of the tool holder to plunge when center-finding
+&EmptySearchDistance = 2.0	' How far to search when looking for the upside-down empty tool holder
+&DrillRodOffset = 0.75	
+&ZClear = 1.0				' How much to pull up the Z for clearing (moving between tools, etc)
+&ZClearSmall = 0.25			' How much to pull up the Z to clear, but tighter
+
+$ToolHolderHeight = 1.0
+$ToolBarPitch = 3			' Distance from one tool clip to the next
+
+' Calculated
+&ToolHolderDiameter = &ToolHolderID + ((&ToolHolderOD-&ToolHolderID)/2.0)
+
+
+Main:
+
+	GOSUB FindToolHolderEmpty
+    &ZReturnPos = %(3)+&DrillRodOffset
+    'Move up out of the way of the tool holder so the exchange can be made
+    J3,%(1)+1.0,%(2)-$ToolBarPitch,0
+    PAUSE "Replace tool holder with one containing a drill rod and press resume."
+    PAUSE 2
+    ' Move back over the tool cup where we were originally
+    J2,%(1)-1.0,%(2)+$ToolBarPitch
+    JZ,&ZReturnPos
+    PAUSE "If tool is captured and drill rod is within the perimiter of the tool holder, press resume."
+    
+	&Tool = 1
+    GOSUB FindToolHolder
+    &DrillRodLength = &ToolHolderZ - &EmptyToolHolderZ
+	$Tool1X = &ToolHolderX
+    $Tool1Y = &ToolHolderY
+    $Tool1Z = &ToolHolderZ - &DrillRodLength
+    GOSUB DoNext
+
+	&Tool = 2
+    GOSUB FindToolHolder
+    $Tool2X = &ToolHolderX
+    $Tool2Y = &ToolHolderY
+    $Tool2Z = &ToolHolderZ - &DrillRodLength
+    GOSUB DoNext
+
+	&Tool = 3
+    GOSUB FindToolHolder
+    $Tool3X = &ToolHolderX
+    $Tool3Y = &ToolHolderY
+    $Tool3Z = &ToolHolderZ - &DrillRodLength
+    GOSUB DoNext
+
+	&Tool = 4
+    GOSUB FindToolHolder
+    $Tool4X = &ToolHolderX
+    $Tool4Y = &ToolHolderY
+    $Tool4Z = &ToolHolderZ - &DrillRodLength
+    GOSUB DoNext
+
+	&Tool = 5
+    GOSUB FindToolHolder
+    $Tool5X = &ToolHolderX
+    $Tool5Y = &ToolHolderY
+    $Tool5Z = &ToolHolderZ - &DrillRodLength
+    GOSUB DoNext
+    
+    &Tool = 6
+    GOSUB FindToolHolder
+    $Tool6X = &ToolHolderX
+    $Tool6Y = &ToolHolderY
+    $Tool6Z = &ToolHolderZ - &DrillRodLength
+
+	JZ,&ToolHolderZ+&ZClearSmall
+	PAUSE "Calibration Complete"
+' Done
+
+END
+
+GOSUB FindToolHolder
+END
+
+' Find the empty tool cup
+' This function should be called when positioned with the empty tool cup in the spindle, and the mating one
+' upside down in a tool clip, with the spindle positioned above the tool clip.
+FindToolHolderEmpty:
+  PZ,%(3)-&EmptySearchDistance,0.5,1	' Probe for tool holder
+  JZ,%(3) + &ZClearSmall				' Pull up to clear
+  PZ,%(3)-(2.0*&ZClearSmall),0.1,1		' Probe again (slow)
+  &EmptyToolHolderZ = %(3)				' Record the position
+  JZ,%(3)+&ZClearSmall					' Pull up to clear
+  RETURN
+  
+' Find the X,Y,Z position of this tool holder
+' Assumes the drill rod is inside the perimeter of the tool holder and that the Z is below the rim
+FindToolHolder:
+	GOSUB FindToolHolderXY
+    GOSUB FindToolHolderZ
+    RETURN
+    
+' Find the XY center for the tool holder.  Leave the toolhead there. (Z unchanged)
+' Assumes that the drill rod is inside the perimeter of the tool holder and that the Z is below the rim
+FindToolHolderXY:
+	  'Find the Y Center
+	  PY,%(2)-&ToolHolderID,0.1,1
+      &yn = %(2)
+      JY,%(2)+&ToolHolderID/2.0
+      PY,%(2)+&ToolHolderID,0.1,1
+      &yp = %(2)
+      &ToolHolderY = &yn + ((&yp-&yn)/2.0)
+      
+      J2,%(1)-&ToolHolderID/4.0,&ToolHolderY
+	  PX,%(1)-&ToolHolderID,0.1,1
+      &xn = %(1)
+      JX,%(1)+&ToolHolderID/2.0
+      PX,%(1)+&ToolHolderID,0.1,1
+      &xp = %(1)
+      &ToolHolderX = &xn + ((&xp-&xn)/2.0)
+      J2,&ToolHolderX,&ToolHolderY
+      RETURN
+      
+' Find the Z value of the tool holder rim.  Leave the toolhead there.
+FindToolHolderZ:
+	JZ,%(3)+&ZClear
+    JX,%(1)-&ToolHolderDiameter/2.0
+    PZ,%(3)-&ZClear,0.1,1
+    &ToolHolderZ = %(3)
+    RETURN
+
+' Do the next tool holder
+' This function is called when the tool holder position has just been determined in X,Y and Z
+' and the toolhead Z position is just touching the edge of the tool cup (having just done the z-probe)
+DoNext:
+    JZ,&ToolHolderZ+&ZClearSmall	' Pull up to clear
+	' Prompt
+	PAUSE "Move the tool holder to position " + (&Tool+1) + ", or quit to finish"
+    ' Advance to the next tool clip position
+	J2,&ToolHolderX,&ToolHolderY+$ToolBarPitch
+    PAUSE 0.5
+	' Plunge the drill rod below the surface of the 
+    JZ,&ToolHolderZ-&ZDepthForProbe
+    RETURN
