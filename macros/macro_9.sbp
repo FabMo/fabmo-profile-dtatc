@@ -1,3 +1,5 @@
+'!FABMO!name:Tool Change
+'!FABMO!description:Use ATC or manual tool change
 
 ' Set to "Table base" coordinates.  
 ' All locations in this file are in the universal coordinate frame
