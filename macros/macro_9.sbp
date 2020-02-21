@@ -100,8 +100,7 @@ DontPickup:
   AllDone:
 	END
 
-' Drop off a tool
-' CAUTION: Assumes the tool clip being dropped into is empty
+
 OpenToolBar:
 	SO,7,1
     Return
@@ -110,7 +109,9 @@ CloseToolBar:
 	SO,7,0
     Return
 
-    
+
+' Drop off a tool
+' CAUTION: Assumes the tool clip being dropped into is empty  
     
 DropOffTool:
 	$ToolZeroOffset = &CurrentZOffset
@@ -133,21 +134,21 @@ DropOffTool:
 ' Assumes that &ToolX, &ToolY and &ToolZ are populated with the location of the tool to pickup
 PickUpTool:
 	&ToolX = &ToolX + &ToolXFudge 
-	JZ,0												' Pull all the way up 
-	J2,&ToolX,&ToolY									' Position above the tool
+	JZ,0												
+	J2,&ToolX,&ToolY								
     GOSUB OpenToolBar
-    MS,,1.0												' Set the Z-speed to be appropriate for tool capture
-	SO,8,1												' Open drawbar
-    JZ,(&ToolZ)+&PickupClearance		' Drop the Z fast to a level where the tool holder is mostly captured
-    MZ,&ToolZ					' Slow the Z down and do the rest of the capture at move speed
-    SO,8,0												' Close drawbar
-	PAUSE 0.75											' Wait a little bit to ensure that the tool is captured
-    JZ, -0.125				' Pull out of the tool clip
+    MS,,1.0											
+	SO,8,1												
+    JZ,(&ToolZ)+&PickupClearance		              
+    MZ,&ToolZ					                
+    SO,8,0									
+	PAUSE 0.75											
+    JZ, -0.125			
 
 	' The new Z offset is computed and set 
     &NewOffset = &ToolLength + &CurrentZOffset			
     VA,,,&NewOffset
-    $CurrentTool = &Tool								' Update the current tool, now that weve picked it up
+    $CurrentTool = &Tool						
     GOSUB CloseToolBar
 	RETURN
     
@@ -201,38 +202,6 @@ LoadToolValues:
   ToolValuesLoaded:
   	RETURN
 
-' Get the toolhead out of the toolbar area by moving behind it if we're in the area of the toolbar, or doing nothing if we're not.
-MoveClearOfToolBar:
-  JZ,0
-  IF %(1) <= $Tool1X - 1.5 THEN GOTO ClearOfToolBar
-  IF %(1) >= $Tool1X + 1.5 THEN GOTO ClearOfToolBar
-  JX,$Tool1X+1.5
-  PAUSE 0.1
-  ClearOfToolBar:
-	RETURN
-
-' Moves in the Y only to the nearest "slot" between tool clips.
-' This is used, for example, after picking up a tool, when we want to bring it out to the table
-MoveToNearestLane:
-	IF %(2) >= &ToolY THEN GOTO OneMore
-    IF %(2) < &ToolY THEN GOTO OneLess
-    PAUSE 0.1
-    OneMore:
-    	JY,&ToolY + ($ToolBarPitch/2.0)
-      	GOTO DoneMoveToNearestLane
-    OneLess:
-        JY,&ToolY - ($ToolBarPitch/2.0)
-        GOTO DoneMoveToNearestLane
-    DoneMoveToNearestLane:
-    RETURN
-    
-' Moves toolhead to the first lane only if it is not already past it. 
-MoveToFirstLane:
-    GoFirstLane:
-    IF %(2) < $Tool1Y-3 THEN GOTO DontMoveToFirstLane
-	JY,$Tool1Y-3
-    DontMoveToFirstLane:
-    RETURN
     
 MakeSureSpindleIsOff:
 	SO,1,0
