@@ -1,23 +1,24 @@
 'This will calibraite the and record the tool clip locations for a Desktop ATC
 'It will extend the tool bar then open the key pad for the user to move the move
 'X,Y and Z into the number one tool clip.
+&ATC_safeclear = 2.5
 
-Pause 'We will first home the machine.
+Pause "We will first home the machine."
 C3
 
-Pause 'The press Ok and the tool bar will extend
+Pause "The press Ok and the tool bar will extend"
 
 SO,7,1
-VN,0
-Pause 'Presing ok will open the Key pad for you to move the X,Y and Z into the tool clip at position #1
+SC,0
+Pause "Presing ok will open the Key pad for you to move the X,Y and Z into the tool clip at position #1"
 SK
 &XX1 = %(1)
 &YY1 = %(2)
-&ZZ1 = %(3) + %(8)
+&ZZ1 = %(3) 
 
-MZ,%(3) + 2.5
+MZ,%(3) + &ATC_safeclear
 MY,%(2) + 15
-Pause 'Now, use the keypad to lower the tool holder into the tool clip at position #6, you may need to make adjustments in the X axis position to achieve alignment
+Pause "Now, use the keypad to lower the tool holder into the tool clip at position #6, you may need to make adjustments in the X axis position to achieve alignment"
 
 SK
 &XX2 = %(1)
@@ -26,35 +27,33 @@ SK
 &XX = &XX1
 &YY =  &YY1
 &ZZ = &ZZ1
-&XX2 = &XX2
-&CLIP1_X = &XX
-&CLIP1_Y = &YY
-&CLIP1_Z = &ZZ
-&CLIP2_X = &XX + (&XX2-&XX)/5 * 1
-&CLIP2_Y = &YY +(3*1)
-&CLIP2_Z = &ZZ
-&CLIP3_X = &XX + (&XX2-&XX)/5 * 2
-&CLIP3_Y = &YY +(3*2)
-&CLIP3_Z = &ZZ
-&CLIP4_X = &XX + (&XX2-&XX)/5 * 3
-&CLIP4_Y = &YY +(3*3)
-&CLIP4_Z = &ZZ
-&CLIP5_X = &XX + (&XX2-&XX)/5 * 4
-&CLIP5_Y = &YY +(3*4)
-&CLIP5_Z = &ZZ
-&CLIP6_X = &XX + (&XX2-&XX)/5 * 5
-&CLIP6_Y = &YY +(3*5)
-&CLIP6_Z = &ZZ
-&CLIP7_X = &XX + (&XX2-&XX)/5 * 5
-&CLIP7_Y = &YY +(3*5)
-&CLIP7_Z = &ZZ
-&ATC_SAFEY = 3
+
+$Tool1X = &XX
+$Tool1Y = &YY
+$Tool1Z = &ZZ
+$Tool2X = &XX + (&XX2-&XX)/5 * 1
+$Tool2Y = &YY +(3*1)
+$Tool2Z = &ZZ
+$Tool3X = &XX + (&XX2-&XX)/5 * 2
+$Tool3Y = &YY +(3*2)
+$Tool3Z = &ZZ
+$Tool4X = &XX + (&XX2-&XX)/5 * 3
+$Tool4Y = &YY +(3*3)
+$Tool4Z = &ZZ
+$Tool5X = &XX + (&XX2-&XX)/5 * 4
+$Tool5Y = &YY +(3*4)
+$Tool5Z = &ZZ
+$Tool6X = &XX + (&XX2-&XX)/5 * 5
+$Tool6Y = &YY +(3*5)
+$Tool6Z = &ZZ
 
 
-JZ,&ATC_safeclear
+
+JZ,%(3) + &ATC_safeclear
 
 VN,1
 SO,7,0
 END
+
 
 

@@ -1,9 +1,7 @@
-'!FABMO!name:Find Table Origin
-'!FABMO!description:Search for Z,Y,X Prox Switches
 ' ATC HOMING MACRO
 
 ' Amount to back off the prox switches before zeroing
-&XBackoff = 0.125
+&XBackoff = 0.25
 &YBackoff = 0.125	
 &ZBackoff = 0.25
 
