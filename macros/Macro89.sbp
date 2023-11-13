@@ -1,0 +1,264 @@
+'Macro 89
+'ATC Settings
+
+'$ATC 'The type of ATC machine in use. 1 = PRS3, 2 = PRS4, 3 = DT, 4 = MAXATC V1, 5 = 5-axis (not ATC), 6 = PRS 5, 7 = MAX ATC V2
+'$ToolIn 'The tool nubmer currently held in the spindle
+
+'Toolbar Orientation
+'======================================================================================
+'&ToolBarPosition = 1  
+' +  ____2____
+' ^ |         |
+' | -1        1
+' Y |___-2____|
+'  X - > + 
+'======================================================================================
+'&ToolBarAlongX = 2 if true, 0 if false
+'                  _ __ __ __ _
+'\o/\o/\o/\o/       |  |  |  | 
+'_|__|__|__|_  or  /o\/o\/o\/o\
+'======================================================================================
+'&ToolBarAlongY = 1 if true, 0 if false
+'|-<o        o>-|
+'|-<o        o>-|
+'|-<o        o>-|
+'|-<o   or   o>-|
+'======================================================================================
+'&ToolClipOrientation = 1
+' + _____       _____       _____        _____       _____
+' ^|     |     |     |     |     |      |     |     |  |  |       
+' || [o] |     ||-<o |     | o>-||      | \o/ |     | /o\ |      
+' Y|_____| = 0 |_____| = 1 |_____| = -1 |__|__| = 2 |_____| = -2  
+'   X - > +
+'======================================================================================
+
+IF $ATC = 1 THEN GOTO ATC1
+IF $ATC = 2 THEN GOTO ATC2
+IF $ATC = 3 THEN GOTO ATC3
+IF $ATC = 4 THEN GOTO ATC4
+IF $ATC = 6 THEN GOTO ATC6
+IF $ATC = 7 THEN GOTO ATC7
+
+ATC1:
+'Inputs
+&ZZero = 1
+&XLimit = 2
+&YLimit = 3
+&ZLimit = 5
+&ToolPresent = 57
+&DrawBarSensor = 58
+'Outputs
+&SpindleCtl = 1
+&DustFoot = 3
+&DrawBarAct = 8
+'Speed Settings
+&SlowXY = 0.5 * (%(25)*25.4)
+&SlowZ = 0.25 * (%(25)*25.4)
+&MaxMoveXY = 1 * (%(25)*25.4)
+&MaxMoveZ = 0.5 * (%(25)*25.4)
+&MaxJogXY = 4 * (%(25)*25.4)
+&MaxJogZ = 3 * (%(25)*25.4)
+'Toolbar Parameters
+&ToolHolderHeight = 2.037 * (%(25)*25.4)
+&HolderRadius = 0.75 * (%(25)*25.4)
+&StylusDia = 0.25 * (%(25)*25.4)
+&ToolClipSpacing = 6 * (%(25)*25.4)
+&ClipHeightClearance =  2 * (%(25)*25.4)
+&THClearance = 0.5 * (%(25)*25.4)
+&ATC_ClipSafe = 3 * (%(25)*25.4)
+&ATC_ClipClear = 1.5 * (%(25)*25.4)
+'Movement Parameters
+&BigPlunge = 36 * (%(25)*25.4)
+&BigMove = 200 * (%(25)*25.4)
+&SensorClear = 0.5 * (%(25)*25.4)
+&PlateClear = 3 * (%(25)*25.4)
+GOTO FINISHED
+
+ATC2:
+'Inputs
+&ZZero = 1
+&XLimit = 2
+&YLimit = 3
+&ZLimit = 5
+&ToolPresent = 57
+&DrawBarSensor = 58
+'Outputs
+&SpindleCtl = 1
+&DrawBarAct = 8
+'Speed Settings
+&SlowXY = 0.5 * (%(25)*25.4)
+&SlowZ = 0.25 * (%(25)*25.4)
+&MaxMoveXY = 1 * (%(25)*25.4)
+&MaxMoveZ = 0.5 * (%(25)*25.4)
+&MaxJogXY = 4 * (%(25)*25.4)
+&MaxJogZ = 3 * (%(25)*25.4)
+'Toolbar Parameters
+&ToolHolderHeight = 2.037 * (%(25)*25.4)
+&HolderRadius = 0.75 * (%(25)*25.4)
+&StylusDia = 0.25 * (%(25)*25.4)
+&ToolClipSpacing = 6 * (%(25)*25.4)
+&ClipHeightClearance =  2 * (%(25)*25.4)
+&THClearance = 0.5 * (%(25)*25.4)
+&ATC_ClipSafe = 3 * (%(25)*25.4)
+&ATC_ClipClear = 1.5 * (%(25)*25.4)
+'Movement Parameters
+&BigPlunge = 36 * (%(25)*25.4)
+&BigMove = 200 * (%(25)*25.4)
+&SensorClear = 0.5 * (%(25)*25.4)
+&PlateClear = 3 * (%(25)*25.4)
+GOTO FINISHED
+
+ATC3:
+'Inputs
+&ZZero = 1
+&XLimit = 3
+&YLimit = 3
+&ZLimit = 3
+&ToolBarSensor = 56
+&ToolPresent = 57
+&DrawBarSensor = 58
+'Outputs
+&SpindleCtl = 1
+&ToolBar = 7
+&DrawBarAct = 8
+'Speed Settings
+&SlowXY = 0.5 * (%(25)*25.4)
+&SlowZ = 0.25 * (%(25)*25.4)
+&MaxMoveXY = 1 * (%(25)*25.4)
+&MaxMoveZ = 0.5 * (%(25)*25.4)
+&MaxJogXY = 4 * (%(25)*25.4)
+&MaxJogZ = 3 * (%(25)*25.4)
+'Toolbar Parameters
+&ToolHolderHeight = 2.037 * (%(25)*25.4)
+&HolderRadius = 0.75 * (%(25)*25.4)
+&StylusDia = 0.25 * (%(25)*25.4)
+&ToolClipSpacing = 3 * (%(25)*25.4)
+&ClipHeightClearance =  3 * (%(25)*25.4)
+&THClearance = 0.5 * (%(25)*25.4)
+&ATC_ClipSafe = 0 * (%(25)*25.4)
+&ATC_ClipClear = 1.5 * (%(25)*25.4)
+'Movement Parameters
+&BigPlunge = 8 * (%(25)*25.4)
+&BigMove = 40 * (%(25)*25.4)
+&SensorClear = 0.125 * (%(25)*25.4)
+&PlateClear = 0.5 * (%(25)*25.4)
+&ToolBarClear = 2 * (%(25)*25.4)
+GOTO FINISHED
+
+ATC4:
+'Inputs
+&ZZero = 1
+&XLimit = 3
+&YLimit = 3
+&ZLimit = 3
+&ToolBarSensor = 56
+&ToolPresent = 57
+&DrawBarSensor = 58
+'Outputs
+&SpindleCtl = 1
+&ToolBar = 7
+&DrawBarAct = 8
+'Speed Settings
+&SlowXY = 0.5 * (%(25)*25.4)
+&SlowZ = 0.25 * (%(25)*25.4)
+&MaxMoveXY = 1 * (%(25)*25.4)
+&MaxMoveZ = 0.5 * (%(25)*25.4)
+&MaxJogXY = 4 * (%(25)*25.4)
+&MaxJogZ = 3 * (%(25)*25.4)
+'Toolbar Parameters
+&ToolHolderHeight = 2.037 * (%(25)*25.4)
+&HolderRadius = 0.75 * (%(25)*25.4)
+&StylusDia = 0.25 * (%(25)*25.4)
+&ToolClipSpacing = 3 * (%(25)*25.4)
+&ClipHeightClearance =  3 * (%(25)*25.4)
+&THClearance = 0.5 * (%(25)*25.4)
+&ATC_ClipSafe = 0 * (%(25)*25.4)
+&ATC_ClipClear = 1.5 * (%(25)*25.4)
+'Movement Parameters
+&BigPlunge = 8 * (%(25)*25.4)
+&BigMove = 40 * (%(25)*25.4)
+&SensorClear = 0.125 * (%(25)*25.4)
+&PlateClear = 0.5 * (%(25)*25.4)
+&ToolBarClear = 2 * (%(25)*25.4)
+GOTO FINISHED
+
+ATC6:
+'Inputs
+&ZZero = 1
+&XLimit = 2
+&YLimit = 3
+&ZLimit = 5
+&ToolBarSensor = 56
+&ToolPresent = 57
+&DrawBarSensor = 58
+'Outputs
+&SpindleCtl = 1
+&ToolBar = 3
+&DrawBarAct = 8
+'Speed Settings
+&SlowXY = 0.5 * (%(25)*25.4)
+&SlowZ = 0.25 * (%(25)*25.4)
+&MaxMoveXY = 1 * (%(25)*25.4)
+&MaxMoveZ = 0.5 * (%(25)*25.4)
+&MaxJogXY = 4 * (%(25)*25.4)
+&MaxJogZ = 3 * (%(25)*25.4)
+'Toolbar Parameters
+&ToolHolderHeight = 2.037 * (%(25)*25.4)
+&HolderRadius = 0.75 * (%(25)*25.4)
+&StylusDia = 0.25 * (%(25)*25.4)
+&ToolClipSpacing = 6 * (%(25)*25.4)
+&ClipHeightClearance =  2 * (%(25)*25.4)
+&THClearance = 0.5 * (%(25)*25.4)
+&ATC_ClipSafe = 3 * (%(25)*25.4)
+&ATC_ClipClear = 1.5 * (%(25)*25.4)
+'Movement Parameters
+&BigPlunge = 36 * (%(25)*25.4)
+&BigMove = 200 * (%(25)*25.4)
+&SensorClear = 0.5 * (%(25)*25.4)
+&PlateClear = 3 * (%(25)*25.4)
+GOTO FINISHED
+
+ATC7:
+'Inputs
+&ZZero = 1
+&XLimit = 3
+&YLimit = 3
+&ZLimit = 3
+&ToolBarPresent = 56
+&ToolPresent = 57
+&DrawBarSensor = 58
+'Outputs
+&SpindleCtl = 1
+&DustFoot = 3
+&DrawBarAct = 8
+'Speed Settings
+&SlowXY = 0.5 * (%(25)*25.4)
+&SlowZ = 0.25 * (%(25)*25.4)
+&MaxMoveXY = 1 * (%(25)*25.4)
+&MaxMoveZ = 0.5 * (%(25)*25.4)
+&MaxJogXY = 4 * (%(25)*25.4)
+&MaxJogZ = 3 * (%(25)*25.4)
+'Toolbar Parameters
+&ToolHolderHeight = 2.037 * (%(25)*25.4)
+&HolderRadius = 0.75 * (%(25)*25.4)
+&StylusDia = 0.25 * (%(25)*25.4)
+&ToolClipSpacing = 6 * (%(25)*25.4)
+&ClipHeightClearance =  2 * (%(25)*25.4)
+&THClearance = 0.15 * (%(25)*25.4)
+&ATC_ClipSafe = 1.75 * (%(25)*25.4)
+&ATC_ClipClear = 1.5 * (%(25)*25.4)
+'Movement Parameters
+&BigPlunge = 8 * (%(25)*25.4)
+&BigMove = 40 * (%(25)*25.4)
+&SensorClear = 0.125 * (%(25)*25.4)
+&RearXProxClear = 2 * (%(25)*25.4)
+&PlateClear = 0.5 * (%(25)*25.4)
+&FirstClipX = 39.75 * (%(25)*25.4)
+&FirstClipY = 5.125 * (%(25)*25.4)
+&FirstClipZ = 3 * (%(25)*25.4)
+&ManualChangeX = 15 * (%(25)*25.4)
+&ManualChangeY = 0 * (%(25)*25.4)
+GOTO FINISHED
+
+FINISHED:
+END
