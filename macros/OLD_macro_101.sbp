@@ -1,0 +1,59 @@
+'This will calibraite the and record the tool clip locations for a Desktop ATC
+'It will extend the tool bar then open the key pad for the user to move the move
+'X,Y and Z into the number one tool clip.
+&ATC_safeclear = 2.5
+
+Pause "We will first home the machine."
+C3
+
+Pause "The press Ok and the tool bar will extend"
+
+SO,7,1
+SC,0
+Pause "Presing ok will open the Key pad for you to move the X,Y and Z into the tool clip at position #1"
+SK
+&XX1 = %(1)
+&YY1 = %(2)
+&ZZ1 = %(3) 
+
+MZ,%(3) + &ATC_safeclear
+MY,%(2) + 15
+Pause "Now, use the keypad to lower the tool holder into the tool clip at position #6, you may need to make adjustments in the X axis position to achieve alignment"
+
+SK
+&XX2 = %(1)
+
+&NUMCLIPS = 6
+&XX = &XX1
+&YY =  &YY1
+&ZZ = &ZZ1
+
+$Tool1X = &XX
+$Tool1Y = &YY
+$Tool1Z = &ZZ
+$Tool2X = &XX + (&XX2-&XX)/5 * 1
+$Tool2Y = &YY +(3*1)
+$Tool2Z = &ZZ
+$Tool3X = &XX + (&XX2-&XX)/5 * 2
+$Tool3Y = &YY +(3*2)
+$Tool3Z = &ZZ
+$Tool4X = &XX + (&XX2-&XX)/5 * 3
+$Tool4Y = &YY +(3*3)
+$Tool4Z = &ZZ
+$Tool5X = &XX + (&XX2-&XX)/5 * 4
+$Tool5Y = &YY +(3*4)
+$Tool5Z = &ZZ
+$Tool6X = &XX + (&XX2-&XX)/5 * 5
+$Tool6Y = &YY +(3*5)
+$Tool6Z = &ZZ
+
+
+
+JZ,%(3) + &ATC_safeclear
+
+VN,1
+SO,7,0
+END
+
+
+

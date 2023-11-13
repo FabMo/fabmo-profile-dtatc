@@ -1,252 +1,177 @@
+'!FABMO!name: Tool Change
+'!FABMO!description: Handles Manual Tool Change -- MTC (settings in #201)
+' Name: Manual Tool Change
+' Description: Handles Manual Tool Change (MTC) from current Vectric posts and tracks tool# [C9]
+' Platform: Desktop/Desktop MAX
+' Author: Ted Hall, Ryan Sturmer
+' History:
+'   2017/09/13 - Refactored (th)
+'   2018/06/07 - Expanded to support desktop preferences (rs)
+'   2018/06/29 - Minor bugfixes - add support for FAIL command (rs) NOTE: now broken
+'   2021/09/25 - Refactored for latest FabMo (th)... Update "FAIL" when fixed
+'   2022/03/10
 
-' Set to "Table base" coordinates.  
-' All locations in this file are in the universal coordinate frame
-SC,0
+'--- Check to make sure Standard Macro Variables have been read
+$sb_standard_variables_PRESENT := 0								  ' Define test variable if it does not exist
+IF $sb_standard_variables_PRESENT == 0 THEN GOSUB no_variables
 
-' CurrentTool keeps track of the tool that is currently in the spindle
-$CurrentTool := 1
+' === Main Program ===
+GOSUB initialize_variables
+IF &mtc_skip_first_tool_change == "YES" THEN GOSUB MTCSkip
+IF &mtc_mode == "IGNORE" THEN GOSUB MTCIgnore
+IF &mtc_mode == "MTC" THEN GOSUB MTCRun
+IF &mtc_mode == "QUIT" THEN GOSUB MTCQuit
+END
+'====================
 
-' Define a length and name for all 10 tools (if not already defined)
-$Tool1Length := 0
-$Tool1Name := "Tool 1"
-$Tool2Length := 0
-$Tool2Name := "Tool 2"
-$Tool3Length := 0
-$Tool3Name := "Tool 3"
-$Tool4Length := 0
-$Tool4Name := "Tool 4"
-$Tool5Length := 0
-$Tool5Name := "Tool 5"
-$Tool6Length := 0
-$Tool6Name := "Tool 6"
-
-
-$ToolZeroOffset := 0
-
-&ToolHolderXClearance = 1.5	    ' The distance to move in the X when pulling a tool out of the tool clip
-$ToolHolderHeight = 1.962		' The distance in Z between the Z value measured in calibration, and the Z value for putting a tool in a clip
-&ToolXFudge = 0			' Fudge factor TODO: is this really needed?
-
-' Because there is so much Z distance from the prox switch to a properly captured tool in the toolbar, the move that lowers
-' the Z to capture the tool is done in two parts:  A jog to get it most of the way there, and then a final slower move that captures the tool
-' &PickupClearance is the length of the slow move
-&PickupClearance = 0.5			
-
-
-IF &Tool == $CurrentTool THEN GOTO AlreadyHaveThisTool
-
-' Pull Z all the way up, first (0 in table base is just below the prox switch)
-JZ,0
-
-GOSUB MakeSureSpindleIsOff
-
-' A request for tool 0 means "put the current tool away but don't pick another one up"
-IF &Tool == 0 THEN GOSUB CheckForEmptyDropOff
-
-' If i'm already "carrying" tool 0 then I would expect the spindle to be empty
-IF $CurrentTool == 0 THEN GOTO ShouldBeEmpty ' TODO : Pretty sure this shouldnt work, see below.  This should get tested.
-
-' Here, we prepare to drop off the tool that we're currently carrying.
-' We may find that we're not currently carrying the tool that we think we are, and we deal with that situation appropriately
-
-' Load the X,Y,Z position of the tool we're currently carring so we can go put it back
-&ToolToLoad = $CurrentTool
-GOSUB LoadToolValues
-PAUSE 0.1
-
-' Calculate the current z-offset : this is the offset between the z-prox and the user zero position for this tool, with the current tool length factored out
-Prep:
-	GOSUB GetCurrentZOffset
-ShouldBeEmpty:
-	IF %(57) == 1 THEN GOTO HasTool ' Different behavior depending on whether or not we're actually carrying a tool.
-	NoTool:
-		' If we're not carrying a tool, we actually setup to pick up the requested tool 
-		GOSUB GetCurrentZOffset
-        '&ToolLane = &Tool
-        ' Load the X,Y,Z position of the tool we want to pick up
-		&ToolToLoad = &Tool
-		GOSUB LoadToolValues
-    	PAUSE 0.1
-		GOTO Pickup
-    HasTool:
-		GOTO DropOff    
-DropOff:
-  GOSUB DropOffTool
-
-IF &Tool == 0 THEN GOTO DontPickup
-
-Pickup:
-  &ToolToLoad = &Tool
-  GOSUB LoadToolValues
-  GOSUB PickUpTool
-
-  JZ,0
-
-  ' Set the new tool position
-  &NewOffset = -1.0*(&ToolLength + &CurrentZOffset)
-  VA,,,&NewOffset
-
-  GOTO AllDone
-  
-DontPickup:
-  VA,,,0
-  $CurrentTool = 0
-  JZ,0
-  
-  AlreadyHaveThisTool:
-  'PAUSE "Not picking up tool " + &Tool + "Because current tool is " + $CurrentTool
-  AllDone:
-	END
-
-' Drop off a tool
-' CAUTION: Assumes the tool clip being dropped into is empty
-OpenToolBar:
-	SO,7,1
-    pause 1
-    Return
-    
-CloseToolBar:
-	SO,7,0
-    pause 1
-    Return
-
-    
-    
-DropOffTool:
-	$ToolZeroOffset = &CurrentZOffset
-	&ToolX = &ToolX + &ToolXFudge
-	JZ,0								' Pull all the way up
-    J2,&ToolX, &ToolY		' Move behind the tool bar
-    GOSUB OpenToolBar
-    PAUSE 0.1
-    JZ,&ToolZ							' Drop to the Z level needed 
-    MS,0.5
-    MX,&ToolX+&ToolXFudge				' Insert into clip
-    SO,8,1								' Open drawbar
-    PAUSE 0.5							' Wait a bit to ensure that the tool is released
-    JZ, -0.125								' Pull all the way up
-    SO,8,0								' Close drawbar
-    GOSUB CloseToolBar
-	RETURN
-    
-' Pick up a tool
-' Assumes that &ToolX, &ToolY and &ToolZ are populated with the location of the tool to pickup
-PickUpTool:
-	&ToolX = &ToolX + &ToolXFudge 
-	JZ,0												' Pull all the way up 
-	J2,&ToolX,&ToolY									' Position above the tool
-    GOSUB OpenToolBar
-    MS,,1.0												' Set the Z-speed to be appropriate for tool capture
-	SO,8,1												' Open drawbar
-    JZ,(&ToolZ)+&PickupClearance		' Drop the Z fast to a level where the tool holder is mostly captured
-    MZ,&ToolZ					' Slow the Z down and do the rest of the capture at move speed
-    SO,8,0												' Close drawbar
-	PAUSE 0.75											' Wait a little bit to ensure that the tool is captured
-    JZ, -0.125				' Pull out of the tool clip
-	JX,%(1)-2
-	' The new Z offset is computed and set 
-    &NewOffset = &ToolLength + &CurrentZOffset			
-    VA,,,&NewOffset
-    $CurrentTool = &Tool								' Update the current tool, now that weve picked it up
-    GOSUB CloseToolBar
-	RETURN
-    
-' Calculate the current Z offset (must load tool length first)
-' Returns the offset in the &CurrentZOffset variable
-GetCurrentZOffset:
-	IF $CurrentTool == 0 THEN GOTO SetToolZeroOffset
-	&TableZ = %(3)
-    SC,1
-    &UserZ = %(3)
-    SC,0
-    &CurrentZOffset = (&TableZ-&UserZ) - &ToolLength
+'--- Primary Subroutines ---
+MTCIgnore:
+    ' This option is dedicated to Bill Young - Just pretend like we didn't even see this tool change function.
     RETURN
-    SetToolZeroOffset:
-    &CurrentZOffset = $ToolZeroOffset
-    RETURN
-    
-' Load &ToolX,&ToolY,&ToolZ,&ToolLength with values based on &ToolToLoad
-LoadToolValues:
-  &ToolX = $Tool1X
-  &ToolY = $Tool1Y
-  &ToolZ = $Tool1Z
-  &ToolLength = $Tool1Length
-  IF &ToolToLoad == 1 THEN GOTO ToolValuesLoaded
-  &ToolX = $Tool2X
-  &ToolY = $Tool2Y
-  &ToolZ = $Tool2Z
-  &ToolLength = $Tool2Length
-  IF &ToolToLoad == 2 THEN GOTO ToolValuesLoaded
-  &ToolX = $Tool3X
-  &ToolY = $Tool3Y
-  &ToolZ = $Tool3Z
-  &ToolLength = $Tool3Length
-  IF &ToolToLoad == 3 THEN GOTO ToolValuesLoaded
-  &ToolX = $Tool4X
-  &ToolY = $Tool4Y
-  &ToolZ = $Tool4Z
-  &ToolLength = $Tool4Length
-  IF &ToolToLoad == 4 THEN GOTO ToolValuesLoaded
-  &ToolX = $Tool5X
-  &ToolY = $Tool5Y
-  &ToolZ = $Tool5Z
-  &ToolLength = $Tool5Length
-  IF &ToolToLoad == 5 THEN GOTO ToolValuesLoaded
-  &ToolX = $Tool6X
-  &ToolY = $Tool6Y
-  &ToolZ = $Tool6Z
-  &ToolLength = $Tool6Length
-  IF &ToolToLoad == 6 THEN GOTO ToolValuesLoaded
-  FAIL "Unknown tool."
-  ToolValuesLoaded:
-  	RETURN
 
-' Get the toolhead out of the toolbar area by moving behind it if we're in the area of the toolbar, or doing nothing if we're not.
-MoveClearOfToolBar:
-  JZ,0
-  IF %(1) <= $Tool1X - 1.5 THEN GOTO ClearOfToolBar
-  IF %(1) >= $Tool1X + 1.5 THEN GOTO ClearOfToolBar
-  JX,$Tool1X+1.5
-  PAUSE 0.1
-  ClearOfToolBar:
+MTCQuit:
+    'FAIL "A tool change has been encountered in Quit Mode.  The file will now quit.  You can change this behavior in the desktop preferences."
+    PAUSE "A Tool Change request has been encountered in Quit Mode. You can Quit now. You can change this behavior in the Desktop-HELP app or by editing Macro#201."
+	' This will work more appropriately and force a quit when embedded files are set to work with END and EXIT.
+    END
+    
+MTCSkip:
+	' Skip the first MTC call because this is usally a new cutter at betinning of file.
+    &current_tool = &Tool               'update tool
+    &mtc_skip_first_tool_change = "NO"  'change local flag
+	$sb_TOOLcurrent = &current_tool     'update system        
 	RETURN
 
-' Moves in the Y only to the nearest "slot" between tool clips.
-' This is used, for example, after picking up a tool, when we want to bring it out to the table
-MoveToNearestLane:
-	IF %(2) >= &ToolY THEN GOTO OneMore
-    IF %(2) < &ToolY THEN GOTO OneLess
-    PAUSE 0.1
-    OneMore:
-    	JY,&ToolY + ($ToolBarPitch/2.0)
-      	GOTO DoneMoveToNearestLane
-    OneLess:
-        JY,&ToolY - ($ToolBarPitch/2.0)
-        GOTO DoneMoveToNearestLane
-    DoneMoveToNearestLane:
+MTCRun:
+    ' If no &Tool was specified, that's an error
+    IF &Tool == -1 THEN GOTO NoToolError
+
+    ' No need to execute the change if we're already carrying the right tool
+    IF &Tool == &current_tool THEN GOTO DoneMTCRun
+    
+    ' Save the current XY position
+    Pause .5
+    &xpos = %(1)
+    &ypos = %(2)
+    
+    ' Turn the spindle off
+    C7
+    
+    ' Pull up to defined spot
+    if &mtc_z_mode == "MAX" THEN GOSUB GotoMaxZ
+    if &mtc_z_mode == "FIXED" THEN GOSUB GotoFixedZ
+    
+    ' Move to the tool change location ("STAY" choice to be ignored)
+    if &mtc_xy_mode == "FIXED" THEN GOSUB GotoFixedXY
+
+    'Change tools using the specified method
+    if &mtc_zero_mode == "MACRO" THEN GOSUB ZZeroWithMacro
+    if &mtc_zero_mode == "DRO" THEN GOSUB ZZeroWithDRO
+
+    ' Pull up to Safe Z Height
+    JZ, &safe_Z
+
+    ' Return to the XY position we started from
+    J2, &xpos, &ypos
+    
+    ' Set the current tool to the tool requested (assume if we got this far that the tool change was made successfully)
+	&current_tool = &Tool               'update local #
+	$sb_TOOLcurrent = &current_tool     'update system #       
+    
+    ' Spindle back on
+    C6
+    
+    DoneMTCRun:
     RETURN
     
-' Moves toolhead to the first lane only if it is not already past it. 
-MoveToFirstLane:
-    GoFirstLane:
-    IF %(2) < $Tool1Y-3 THEN GOTO DontMoveToFirstLane
-	JY,$Tool1Y-3
-    DontMoveToFirstLane:
+' --- Secondary Subroutines & Errors ---
+
+GotoMaxZ: ' check to make sure not a bad offset
+    IF &current_cutter_Zoffset > &safe_Z THEN GOTO pullup_to_offset
+	JZ, &safe_Z
+	RETURN
+    pullup_to_offset:
+	JZ, &current_cutter_Zoffset
     RETURN
     
-MakeSureSpindleIsOff:
-	SO,1,0
+GotoFixedZ:
+    JZ, &tool_change_z
+    RETURN
+    
+GotoFixedXY:
+    J2, &tool_change_x, &tool_change_y
+    RETURN
+    
+ZZeroWithMacro:
+    SK, "Change to Tool# " + &Tool + " and position it above the Z-Zero plate"
+    C2
+    PAUSE "Press resume to continue with this tool, or quit to exit."
     RETURN
 
+ZZeroWithDRO:
+    SK, "Change to Tool# " + &Tool + " and set the the zero position of the new Tool."
+    C78  ' Set Current Z offset
+    RETURN
+
+NoToolError:
+    'FAIL "A tool change was encountered, but no Tool Number was specified."
+    PAUSE "A tool change was encountered, but no Tool Number was specified."
+    END
     
-' Drop off the current tool and switch to tool zero.  Don't do a drop off if the spindle is already empty.
-CheckForEmptyDropOff:
-	' Drop off if we're carrying something
-	IF %(57) == 1 THEN GOTO DropOffIsNotEmpty
-	' Switch to tool 0
-	JZ,0
-	VA,,,0 ' "Tool 0" z offset is simply the table base Z offset (no offset)
-  	$CurrentTool = 0
-	END
-	DropOffIsNotEmpty:
-  		RETURN
+NoChange:
+    END
+
+no_variables:
+    C201
+    RETURN
+
+
+initialize_variables:
+'--- Initialize Variables and Adjust Standard Macro Variables for Current Tool and Conditions as Needed
+	&Tool := -1
+	&current_tool = $sb_TOOLcurrent        
+	&mtc_mode = $sb_MTCmode
+	&mtc_xy_mode = $sb_MTC_XY_mode
+	&mtc_z_mode = $sb_MTC_Z_mode
+	&mtc_zero_mode = $sb_MTC_Zero_mode
+	&mtc_skip_first_tool_change = $sb_MTC_skip_first
+	&safe_Z = $sb_safe_Z            ' at the moment, units are managed inside FabMo
+
+  'Adjust to current UNITS of tool (handles whether tool Macro Variables are for INCHES or MM)
+    &dist_mult = 1.0
+    IF %(25) == 1 THEN GOTO tool_MM   		                  ' Read UNIT of Tool; System Variable #25
+      tool_IN:
+		$sb_current_cutter_Zoffset := .25                     ' Initialize this variables in IN for case tool cutter not yet zeroed
+        $sb_current_cutter_Zoffset_Units := "IN"
+        IF $sb_varTableUNITS == "IN" THEN GOTO continue_with_variables
+        &dist_mult = 0.0393701                                ' Defined in MM: Multiplier to redefine distances from mm to inches 
+        GOTO continue_with_variables
+      tool_MM:
+        $sb_current_cutter_Zoffset := 6.35                    ' Initialize this variable in MM for case tool cutter not zeroed
+        $sb_current_cutter_Zoffset_Units := "MM"
+        IF $sb_varTableUNITS == "MM" THEN GOTO continue_with_variables
+        &dist_mult = 25.4                                     ' Defined in IN: Multiplier to redefine distances from inches to mm 
+        GOTO continue_with_variables
+  'continue adjusting units for current working variables ...
+	continue_with_variables:                                  '*TOOL UNIT and OFFSET UNIT may be DIFFERENT / fix local unit
+    IF %(25) == 1 THEN GOTO tool_MM_zoff   	                  ' Read UNIT of Tool; System Variable #25
+     tool_IN_zoff:
+        IF $sb_current_cutter_Zoffset_Units == "MM" THEN GOTO continue_with_zoff_variables_MMtoIN
+        &current_cutter_Zoffset = $sb_current_cutter_Zoffset
+        GOTO continue_with_zoff_variables
+	   continue_with_zoff_variables_MMtoIN:
+        &current_cutter_Zoffset = 0.0393701 * $sb_current_cutter_Zoffset  ' Redefine offset distance from mm to inches 
+        GOTO continue_with_zoff_variables
+     tool_MM_zoff:
+        IF $sb_current_cutter_Zoffset_Units == "IN" THEN GOTO continue_with_zoff_variables_INtoMM
+        &current_cutter_Zoffset = $sb_current_cutter_Zoffset
+       continue_with_zoff_variables_INtoMM:
+        &current_cutter_Zoffset = 25.4 * $sb_current_cutter_Zoffset       ' Redefine distances from inches to mm 
+        GOTO continue_with_zoff_variables
+  'continue adjusting units for current working variables ...
+	continue_with_zoff_variables:
+		&tool_change_x = $sb_changePos_X * &dist_mult
+		&tool_change_y = $sb_changePos_Y * &dist_mult
+		&tool_change_z = $sb_changePos_Z * &dist_mult
+
+	RETURN
