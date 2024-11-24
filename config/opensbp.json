@@ -15,7 +15,8 @@
     "safeZpullUp": 0.5,
     "safeApullUp": 0.5,
     "variables" : {
-        "example_variable": 999
+        "example_variable": 999,
+        "ATC.type": 7
     },
     "cRes": 0.01,
     "GblPropX": 1,
