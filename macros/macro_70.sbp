@@ -5,6 +5,8 @@
 &Error = 0
 $ATC.ToolIn := 0
 $ATC.numClips := 7
+$ATC.Status := 0
+$ATC.Dropped := 0
 $ATC.Type = 7
 
 $unitMultiplier = 1
